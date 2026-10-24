@@ -21,22 +21,33 @@ st.sidebar.image(str(LOGO_PATH), caption="AnalisaMed")
 st.sidebar.write("Odylon Kleber Pereira de Souza")
 st.sidebar.write("© 2026 AnalisaMed. Todos os direitos reservados.")
 
-# Banco de dados
-dados_ANISIO = pd.read_excel(PROJECT_DIR / "ANISIO.xlsx")
-dados_JOSE_CURSINHO = pd.read_excel(PROJECT_DIR / "JOSE_CURSINHO.xlsx")
-dados_PEQUENO_PRINCIPE = pd.read_excel(PROJECT_DIR / "PEQUENO_PRINCIPE.xlsx")
-# Dados unificados
-df_unificado_pre = pd.concat([dados_ANISIO, dados_JOSE_CURSINHO, dados_PEQUENO_PRINCIPE], ignore_index=True)
-df_unificado_pos = pd.concat([dados_ANISIO, dados_JOSE_CURSINHO, dados_PEQUENO_PRINCIPE], ignore_index=True)
+# Dados pré intervenção
+st.text("PRÉ INTERVENÇÃO")
+dados_PRÉ_INTERVENÇÃO = pd.read_excel(
+    PROJECT_DIR / "pre_intervencao.ods",
+    engine="odf",
+)
+dados_PRÉ_INTERVENÇÃO
+# Dados pós intervenção
+st.text("PÓS INTERVENÇÃO")
+dados_PÓS_INTERVENÇÃO = pd.read_excel(
+    PROJECT_DIR / "pos_intervencao.ods",
+    engine="odf",
+)
+dados_PÓS_INTERVENÇÃO
 
 
 def mostrar_graficos_frequencia(dataframe, prefixo_chave):
     variaveis_analise = [
         coluna for coluna in dataframe.columns
-        if coluna.strip().casefold() not in {"participante", "participante:"}
+        if str(coluna).strip().casefold() not in {"participante", "participante:"}
     ]
-    colunas_graficos = st.columns(2)
 
+    if dataframe.empty:
+        st.warning("Não há dados disponíveis para gerar os gráficos.")
+        return
+
+    colunas_graficos = st.columns(2)
     for indice, coluna in enumerate(variaveis_analise):
         respostas = dataframe[coluna].map(
             lambda valor: (
@@ -45,30 +56,12 @@ def mostrar_graficos_frequencia(dataframe, prefixo_chave):
                 else str(valor).strip()
             )
         )
-        frequencia = respostas.value_counts().rename_axis("Resposta").reset_index(name="Frequência")
+        frequencia = respostas.value_counts().rename_axis("Resposta").reset_index(
+            name="Frequência"
+        )
         frequencia["Frequência relativa (%)"] = (
             frequencia["Frequência"] / len(dataframe) * 100
         )
-        opcoes_resposta = None
-        if any(
-            questao in coluna
-            for questao in (
-                "06. Considero importante o uso de preservativos nas relações sexuais.",
-                "07. A falta de informação pode aumentar o risco de ISTs",
-            )
-        ):
-            opcoes_resposta = [str(valor) for valor in range(1, 6)]
-            respostas_presentes = set(frequencia["Resposta"])
-            ausentes = [
-                {"Resposta": resposta, "Frequência": 0, "Frequência relativa (%)": 0}
-                for resposta in opcoes_resposta
-                if resposta not in respostas_presentes
-            ]
-            if ausentes:
-                frequencia = pd.concat(
-                    [frequencia, pd.DataFrame(ausentes)],
-                    ignore_index=True,
-                )
 
         grafico = px.bar(
             frequencia,
@@ -78,11 +71,6 @@ def mostrar_graficos_frequencia(dataframe, prefixo_chave):
             text="Frequência relativa (%)",
             hover_data={"Frequência": True, "Frequência relativa (%)": ":.1f"},
             title="Frequência relativa (%)",
-            category_orders=(
-                {"Resposta": opcoes_resposta}
-                if opcoes_resposta is not None
-                else None
-            ),
         )
         grafico.update_traces(
             texttemplate="%{x:.1f}%",
@@ -98,7 +86,7 @@ def mostrar_graficos_frequencia(dataframe, prefixo_chave):
         )
 
         with colunas_graficos[indice % 2]:
-            st.markdown(f"**{coluna.strip()}**")
+            st.markdown(f"**{str(coluna).strip()}**")
             st.plotly_chart(
                 grafico,
                 width="stretch",
@@ -107,7 +95,7 @@ def mostrar_graficos_frequencia(dataframe, prefixo_chave):
 
 
 st.header("ANÁLISE DESCRITIVA PRÉ-INTERVENÇÃO")
-mostrar_graficos_frequencia(df_unificado_pre, "pre")
+mostrar_graficos_frequencia(dados_PRÉ_INTERVENÇÃO, "pre")
 
 st.header("ANÁLISE DESCRITIVA PÓS-INTERVENÇÃO")
-mostrar_graficos_frequencia(df_unificado_pos, "pos")
+mostrar_graficos_frequencia(dados_PÓS_INTERVENÇÃO, "pos")
